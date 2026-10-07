@@ -366,6 +366,7 @@ textarea.modal-input::placeholder { color: #333; }
         </div>
         <div id="modal-buttons">
             <button class="btn btn-cancel" id="btn-cancel">取消</button>
+            <button class="btn btn-secondary" id="btn-rewrite" style="display:none">改写本段</button>
             <button class="btn btn-confirm" id="btn-confirm">续写一段</button>
         </div>
     </div>
@@ -387,6 +388,7 @@ const versionList = document.getElementById('version-list');
 const tocList = document.getElementById('toc-list');
 const btnConfirm = document.getElementById('btn-confirm');
 const btnCancel = document.getElementById('btn-cancel');
+const btnRewrite = document.getElementById('btn-rewrite');
 const loading = document.getElementById('loading');
 const toast = document.getElementById('toast');
 const dotContinue = document.getElementById('dot-continue');
@@ -462,11 +464,13 @@ function openModal(mode) {
     tocList.innerHTML = '';
     lengthRow.classList.remove('active');
     btnConfirm.style.display = '';
+    btnRewrite.style.display = 'none';
     if (mode === 'continue') {
         modalTitle.textContent = '本段方向';
         promptInput.style.display = '';
         promptInput.value = localStorage.getItem('dragon_draft') || '';
         btnConfirm.textContent = '续写一段';
+        if (totalParagraphs > 0) btnRewrite.style.display = '';
         lengthRow.classList.add('active');
         renderLengthOpts();
         setTimeout(() => promptInput.focus(), 50);
@@ -596,29 +600,53 @@ async function saveSystemOrStyle() {
     } catch (e) { showToast('请求失败'); }
 }
 
-async function continueParagraph() {
+async function continueParagraph(mode) {
+    mode = mode || 'new';
     const userPrompt = promptInput.value.trim();
-    if (!userPrompt) { showToast('先写一下这段的方向'); return; }
+    if (!userPrompt) { showToast(mode === 'rewrite' ? '先写一下改写方向' : '先写一下这段的方向'); return; }
     if (isGenerating) return;
     localStorage.removeItem('dragon_draft');
     closeModal();
     isGenerating = true;
     dotContinue.classList.add('busy');
     loading.classList.add('active');
+    loading.querySelector('span').textContent = mode === 'rewrite' ? '正在改写…' : '正在写…';
 
-    // 流式盒子：直接缀在正文末尾
-    const streamDiv = document.createElement('div');
-    streamDiv.className = 'para-block';
-    streamDiv.innerHTML = '<span id="stream-cursor"></span>';
-    novelText.appendChild(streamDiv);
-    container.scrollTop = container.scrollHeight;
+    // 流式盒子：续写时缀在正文末尾，改写时替换最后一段
+    let streamDiv, targetParaNum;
+    if (mode === 'rewrite') {
+        targetParaNum = totalParagraphs;
+        const blocks = novelText.querySelectorAll('.para-block');
+        streamDiv = blocks[blocks.length - 1];
+        if (streamDiv) {
+            streamDiv.innerHTML = '<span id="stream-cursor"></span>';
+            streamDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } else {
+            streamDiv = document.createElement('div');
+            streamDiv.className = 'para-block';
+            streamDiv.innerHTML = '<span id="stream-cursor"></span>';
+            novelText.appendChild(streamDiv);
+        }
+    } else {
+        const newDiv = document.createElement('div');
+        newDiv.className = 'para-block';
+        newDiv.innerHTML = '<span id="stream-cursor"></span>';
+        novelText.appendChild(newDiv);
+        streamDiv = newDiv;
+        container.scrollTop = container.scrollHeight;
+    }
 
     let full = '';
     try {
         const resp = await fetch('/api/paragraph/continue-stream', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userPrompt, targetLength: getSelectedLength() })
+            body: JSON.stringify({
+                userPrompt,
+                targetLength: getSelectedLength(),
+                mode: mode,
+                paraNum: mode === 'rewrite' ? targetParaNum : 0
+            })
         });
         if (!resp.ok) {
             const t = await resp.text();
@@ -650,7 +678,7 @@ async function continueParagraph() {
                 }
             }
         }
-        if (finished) showToast(`第 ${doneNum} 段写好了`);
+        if (finished) showToast(mode === 'rewrite' ? `第 ${doneNum} 段改好了` : `第 ${doneNum} 段写好了`);
         else if (!full) throw new Error('生成中断');
     } catch (e) {
         streamDiv.innerHTML = esc('生成失败：' + e.message);
@@ -670,8 +698,11 @@ document.getElementById('dot-versions').addEventListener('click', () => openModa
 btnCancel.addEventListener('click', closeModal);
 overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(); });
 btnConfirm.addEventListener('click', () => {
-    if (modalMode === 'continue') continueParagraph();
+    if (modalMode === 'continue') continueParagraph('new');
     else if (modalMode === 'system' || modalMode === 'style') saveSystemOrStyle();
+});
+btnRewrite.addEventListener('click', () => {
+    if (modalMode === 'continue') continueParagraph('rewrite');
 });
 document.addEventListener('keydown', e => {
     if (e.key === 'Escape') closeModal();
