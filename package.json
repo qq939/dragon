@@ -1,0 +1,1 @@
+{"description":"段落式 AI 小说写作服务 —— 《失业青年怒杀龙虎榜》（由 mythos 优化而来）","engines":{"node":">=16"},"main":"server.js","name":"dragon","scripts":{"start":"node server.js"},"version":"1.0.0"}
