@@ -3,223 +3,512 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DRAGON · 失业青年怒杀龙虎榜</title>
+<title>DRAGON</title>
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: "PingFang SC", "Microsoft YaHei", serif; background: #141414; color: #e8e8e8; line-height: 1.9; }
-  header { position: sticky; top: 0; background: #1c1c1c; border-bottom: 1px solid #333; padding: 12px 20px; display: flex; align-items: center; gap: 12px; z-index: 10; }
-  header h1 { font-size: 18px; letter-spacing: 2px; }
-  header h1 .sub { color: #c9a227; font-size: 13px; letter-spacing: 1px; margin-left: 8px; }
-  header .spacer { flex: 1; }
-  header .stat { font-size: 12px; color: #888; }
-  main { max-width: 760px; margin: 0 auto; padding: 24px 20px 200px; }
-  .para { background: #1e1e1e; border: 1px solid #2c2c2c; border-radius: 8px; padding: 16px 18px; margin-bottom: 14px; position: relative; }
-  .para .num { font-size: 11px; color: #c9a227; letter-spacing: 1px; margin-bottom: 6px; }
-  .para .text { white-space: pre-wrap; font-size: 15px; }
-  .para .ops { position: absolute; top: 10px; right: 12px; display: none; gap: 6px; }
-  .para:hover .ops { display: flex; }
-  .para .ops button { background: #333; color: #ccc; border: none; border-radius: 4px; font-size: 11px; padding: 3px 8px; cursor: pointer; }
-  .para .ops button:hover { background: #444; color: #fff; }
-  .para.editing .text { display: none; }
-  .para textarea.edit { display: none; width: 100%; min-height: 120px; background: #141414; color: #e8e8e8; border: 1px solid #444; border-radius: 4px; padding: 10px; font-size: 15px; line-height: 1.9; font-family: inherit; }
-  .para.editing textarea.edit { display: block; }
-  .para .edit-ops { display: none; margin-top: 8px; gap: 8px; }
-  .para.editing .edit-ops { display: flex; }
-  .empty { text-align: center; color: #666; padding: 60px 0; font-size: 14px; }
-  #composer { position: fixed; bottom: 0; left: 0; right: 0; background: #1c1c1c; border-top: 1px solid #333; padding: 14px 20px; }
-  #composer .inner { max-width: 760px; margin: 0 auto; }
-  #prompt-input { width: 100%; min-height: 64px; background: #141414; color: #e8e8e8; border: 1px solid #444; border-radius: 6px; padding: 10px 12px; font-size: 14px; font-family: inherit; resize: vertical; }
-  #composer .row { display: flex; gap: 10px; margin-top: 10px; align-items: center; }
-  #btn-write { background: #c9a227; color: #141414; border: none; border-radius: 6px; padding: 10px 26px; font-size: 15px; font-weight: bold; cursor: pointer; }
-  #btn-write:disabled { background: #555; color: #999; cursor: not-allowed; }
-  #btn-theme { background: transparent; color: #888; border: 1px solid #444; border-radius: 6px; padding: 9px 14px; font-size: 13px; cursor: pointer; }
-  #status { font-size: 12px; color: #888; }
-  #stream-box { display: none; background: #1e1e1e; border: 1px solid #c9a227; border-radius: 8px; padding: 16px 18px; margin-bottom: 14px; }
-  #stream-box .num { font-size: 11px; color: #c9a227; margin-bottom: 6px; }
-  #stream-box .text { white-space: pre-wrap; font-size: 15px; }
-  .cursor { display: inline-block; width: 8px; height: 16px; background: #c9a227; animation: blink 0.8s infinite; vertical-align: -2px; }
-  @keyframes blink { 50% { opacity: 0; } }
-  #theme-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.7); z-index: 50; align-items: center; justify-content: center; }
-  #theme-modal .box { background: #1e1e1e; border: 1px solid #444; border-radius: 10px; width: min(720px, 92vw); max-height: 84vh; display: flex; flex-direction: column; }
-  #theme-modal h3 { padding: 16px 20px; border-bottom: 1px solid #333; font-size: 16px; }
-  #theme-modal textarea { flex: 1; margin: 16px 20px; min-height: 300px; background: #141414; color: #e8e8e8; border: 1px solid #444; border-radius: 6px; padding: 12px; font-size: 13px; font-family: inherit; line-height: 1.8; }
-  #theme-modal .foot { padding: 0 20px 16px; display: flex; gap: 10px; justify-content: flex-end; }
-  #theme-modal .foot button { border-radius: 6px; padding: 8px 20px; font-size: 14px; cursor: pointer; }
-  #theme-save { background: #c9a227; color: #141414; border: none; font-weight: bold; }
-  #theme-close { background: transparent; color: #aaa; border: 1px solid #444; }
-  #toast { position: fixed; top: 70px; left: 50%; transform: translateX(-50%); background: #333; color: #fff; padding: 8px 18px; border-radius: 6px; font-size: 13px; display: none; z-index: 60; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+    background: #0a0a0b;
+    color: #c8c8c8;
+    font-family: 'Georgia', 'Noto Serif SC', serif;
+    line-height: 2;
+    overflow: hidden;
+    height: 100vh;
+}
+
+#novel-container {
+    height: 100vh;
+    overflow-y: auto;
+    padding: 60px 80px 120px 80px;
+    scroll-behavior: smooth;
+}
+
+#novel-container::-webkit-scrollbar { width: 3px; }
+#novel-container::-webkit-scrollbar-track { background: transparent; }
+#novel-container::-webkit-scrollbar-thumb { background: #222; border-radius: 2px; }
+
+#novel-title {
+    max-width: 720px;
+    margin: 0 auto 8px auto;
+    text-align: center;
+    color: #2a2a2a;
+    font-size: 28px;
+    letter-spacing: 18px;
+    font-weight: normal;
+    user-select: none;
+}
+
+#para-label {
+    max-width: 720px;
+    margin: 0 auto 48px auto;
+    text-align: center;
+    color: #1a1a1a;
+    font-size: 11px;
+    letter-spacing: 3px;
+    user-select: none;
+}
+
+#novel-text {
+    max-width: 720px;
+    margin: 0 auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+    font-size: 16.5px;
+    letter-spacing: 0.3px;
+}
+
+#novel-text:empty::before { content: ''; color: transparent; }
+
+.para-block { margin-bottom: 1.2em; }
+.para-block:last-child { margin-bottom: 0; }
+
+#stream-cursor {
+    display: inline-block;
+    width: 7px;
+    height: 15px;
+    background: #3a3a3a;
+    vertical-align: -2px;
+    margin-left: 2px;
+    animation: blink 0.9s infinite;
+}
+@keyframes blink { 50% { opacity: 0; } }
+
+/* Left side dots */
+#dot-container {
+    position: fixed;
+    left: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    z-index: 100;
+}
+
+.trigger-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #1a1a1a;
+    cursor: pointer;
+    transition: background 0.3s;
+    position: relative;
+}
+.trigger-dot::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 36px;
+    height: 36px;
+}
+.trigger-dot:hover { background: #3a3a3a; }
+.trigger-dot.busy { background: #333; animation: pulse 1.5s ease-in-out infinite; }
+
+/* Paragraph indicator */
+#para-nav {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    z-index: 100;
+    color: #1a1a1a;
+    font-size: 12px;
+    letter-spacing: 2px;
+    user-select: none;
+}
+#para-nav:hover { color: #2a2a2a; }
+
+/* Modal overlay */
+#modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 200;
+    justify-content: center;
+    align-items: center;
+}
+#modal-overlay.active { display: flex; }
+
+#modal {
+    background: #111;
+    border: 1px solid #222;
+    border-radius: 4px;
+    padding: 32px;
+    width: 520px;
+    max-width: 90vw;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+#modal h3 {
+    color: #666;
+    font-size: 13px;
+    font-weight: normal;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+}
+
+textarea.modal-input {
+    width: 100%;
+    background: #0d0d0d;
+    border: 1px solid #222;
+    border-radius: 2px;
+    color: #aaa;
+    font-family: 'Georgia', serif;
+    font-size: 14px;
+    line-height: 1.8;
+    padding: 12px;
+    resize: vertical;
+    outline: none;
+}
+textarea.modal-input:focus { border-color: #333; }
+textarea.modal-input::placeholder { color: #333; }
+
+#prompt-input { height: 100px; }
+#system-prompt-input, #style-prompt-input { height: 300px; font-size: 12.5px; line-height: 1.6; }
+
+#modal-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 20px;
+}
+
+.btn {
+    padding: 8px 24px;
+    border: none;
+    border-radius: 2px;
+    font-size: 13px;
+    cursor: pointer;
+    font-family: inherit;
+    letter-spacing: 1px;
+}
+.btn-cancel { background: transparent; color: #444; border: 1px solid #222; }
+.btn-cancel:hover { color: #666; border-color: #333; }
+.btn-confirm { background: #1a1a1a; color: #888; }
+.btn-confirm:hover { background: #222; color: #aaa; }
+.btn-confirm:disabled { opacity: 0.3; cursor: not-allowed; }
+
+/* Version list */
+#version-list { display: none; width: 100%; }
+#version-list.active { display: block; }
+
+.version-item {
+    display: flex;
+    align-items: center;
+    padding: 10px 14px;
+    cursor: pointer;
+    border-bottom: 1px solid #181818;
+    transition: background 0.2s;
+}
+.version-item:hover { background: #181818; }
+.version-item:last-child { border-bottom: none; }
+.version-id { color: #666; font-size: 13px; letter-spacing: 1px; min-width: 80px; }
+.version-meta { color: #333; font-size: 11px; margin-left: auto; letter-spacing: 0.5px; }
+#version-empty { color: #333; font-size: 12px; text-align: center; padding: 30px 0; font-style: italic; }
+
+/* Loading indicator */
+#loading {
+    display: none;
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: #333;
+    font-size: 12px;
+    letter-spacing: 3px;
+    z-index: 150;
+}
+#loading.active { display: block; }
+@keyframes pulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 0.8; } }
+#loading span { animation: pulse 2s ease-in-out infinite; }
+
+/* Toast */
+#toast {
+    display: none;
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: #555;
+    font-size: 12px;
+    letter-spacing: 2px;
+    z-index: 300;
+}
+#toast.active { display: block; animation: toastFade 2s ease forwards; }
+@keyframes toastFade { 0% { opacity: 0; } 20% { opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; } }
+
+/* Mobile */
+@media (max-width: 768px) {
+    #novel-container { padding: 40px 24px 100px 24px; }
+    #novel-title { font-size: 22px; letter-spacing: 12px; }
+}
 </style>
 </head>
 <body>
-<header>
-  <h1>DRAGON<span class="sub">失业青年怒杀龙虎榜</span></h1>
-  <div class="spacer"></div>
-  <div class="stat" id="stat">加载中…</div>
-</header>
-<main id="list"></main>
-<div id="composer">
-  <div class="inner">
-    <textarea id="prompt-input" placeholder="这一段想写什么？比如：林默第一次看到龙虎榜，手指悬在买入键上迟迟不敢点…"></textarea>
-    <div class="row">
-      <button id="btn-write">续写一段</button>
-      <button id="btn-theme">主题设定</button>
-      <span id="status"></span>
-    </div>
-  </div>
+
+<div id="novel-container">
+    <h1 id="novel-title">DRAGON</h1>
+    <div id="para-label">失业青年怒杀龙虎榜</div>
+    <div id="novel-text"></div>
 </div>
-<div id="theme-modal">
-  <div class="box">
-    <h3>主题设定（系统 prompt）</h3>
-    <textarea id="theme-text"></textarea>
-    <div class="foot">
-      <button id="theme-close">关闭</button>
-      <button id="theme-save">保存</button>
-    </div>
-  </div>
+
+<div id="dot-container">
+    <div class="trigger-dot" id="dot-continue" title="续写一段"></div>
+    <div class="trigger-dot" id="dot-system" title="主题设定"></div>
+    <div class="trigger-dot" id="dot-style" title="风格参考"></div>
+    <div class="trigger-dot" id="dot-versions" title="版本"></div>
 </div>
+
+<div id="para-nav">
+    <span id="para-indicator"></span>
+</div>
+
+<div id="modal-overlay">
+    <div id="modal">
+        <h3 id="modal-title">本段方向</h3>
+        <textarea id="prompt-input" class="modal-input" placeholder="这一段想写什么…"></textarea>
+        <textarea id="system-prompt-input" class="modal-input" style="display:none" placeholder="主题设定…"></textarea>
+        <textarea id="style-prompt-input" class="modal-input" style="display:none" placeholder="粘贴一段你喜欢的文章，AI将模仿其风格续写…"></textarea>
+        <div id="version-list"></div>
+        <div id="modal-buttons">
+            <button class="btn btn-cancel" id="btn-cancel">取消</button>
+            <button class="btn btn-confirm" id="btn-confirm">续写一段</button>
+        </div>
+    </div>
+</div>
+
+<div id="loading"><span>正在写…</span></div>
 <div id="toast"></div>
+
 <script>
-const listEl = document.getElementById('list');
-const inputEl = document.getElementById('prompt-input');
-const btnWrite = document.getElementById('btn-write');
-const statusEl = document.getElementById('status');
-const statEl = document.getElementById('stat');
-const streamBox = document.createElement('div');
-streamBox.id = 'stream-box';
+const novelText = document.getElementById('novel-text');
+const paraIndicator = document.getElementById('para-indicator');
+const paraLabel = document.getElementById('para-label');
+const overlay = document.getElementById('modal-overlay');
+const modalTitle = document.getElementById('modal-title');
+const promptInput = document.getElementById('prompt-input');
+const systemInput = document.getElementById('system-prompt-input');
+const styleInput = document.getElementById('style-prompt-input');
+const versionList = document.getElementById('version-list');
+const btnConfirm = document.getElementById('btn-confirm');
+const btnCancel = document.getElementById('btn-cancel');
+const loading = document.getElementById('loading');
+const toast = document.getElementById('toast');
+const dotContinue = document.getElementById('dot-continue');
+const container = document.getElementById('novel-container');
+
 let isGenerating = false;
+let totalParagraphs = 0;
+let modalMode = null; // 'continue' | 'system' | 'style' | 'versions'
 
-function toast(msg) {
-  const t = document.getElementById('toast');
-  t.textContent = msg; t.style.display = 'block';
-  setTimeout(() => t.style.display = 'none', 2200);
+function showToast(msg) {
+    toast.textContent = msg;
+    toast.classList.remove('active');
+    void toast.offsetWidth;
+    toast.classList.add('active');
 }
-function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-async function loadList() {
-  try {
-    const r = await fetch('/api/paragraphs');
-    const d = await r.json();
-    const paras = d.paragraphs || [];
-    statEl.textContent = `共 ${paras.length} 段` + (d.generating ? ' · 生成中…' : '');
-    if (paras.length === 0) {
-      listEl.innerHTML = '<div class="empty">还没有正文，在下面写下第一段的方向，点"续写一段"开始。</div>';
-      return;
+function esc(s) {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+async function loadManuscript() {
+    try {
+        const [listResp, statusResp] = await Promise.all([
+            fetch('/api/paragraphs'),
+            fetch('/api/status')
+        ]);
+        const listData = await listResp.json();
+        const paras = listData.paragraphs || [];
+        totalParagraphs = paras.length;
+        paraIndicator.textContent = totalParagraphs > 0 ? `共 ${totalParagraphs} 段` : '';
+
+        if (paras.length === 0) {
+            novelText.innerHTML = '';
+            return;
+        }
+        const texts = await Promise.all(paras.map(async pa => {
+            const r = await fetch('/api/paragraph/' + pa.num);
+            return await r.text();
+        }));
+        novelText.innerHTML = texts
+            .map(t => `<div class="para-block">${esc(t)}</div>`)
+            .join('');
+        container.scrollTop = container.scrollHeight;
+    } catch (e) {
+        showToast('加载失败');
     }
-    const texts = await Promise.all(paras.map(async pa => {
-      const tr = await fetch('/api/paragraph/' + pa.num);
-      return { num: pa.num, text: await tr.text() };
-    }));
-    listEl.innerHTML = '';
-    texts.forEach(({ num, text }) => {
-      const div = document.createElement('div');
-      div.className = 'para'; div.dataset.num = num;
-      div.innerHTML = `<div class="num">第 ${num} 段</div><div class="text">${esc(text)}</div>
-        <div class="ops"><button data-act="edit">改</button><button data-act="del">删</button></div>
-        <textarea class="edit"></textarea><div class="edit-ops"><button data-act="save">保存</button><button data-act="cancel">取消</button></div>`;
-      div.querySelector('textarea.edit').value = text;
-      div.addEventListener('click', onParaClick);
-      listEl.appendChild(div);
-    });
-    window.scrollTo(0, document.body.scrollHeight);
-  } catch (e) { statEl.textContent = '加载失败'; }
 }
 
-async function onParaClick(e) {
-  const btn = e.target.closest('button'); if (!btn) return;
-  const div = e.target.closest('.para'); const num = div.dataset.num;
-  const act = btn.dataset.act;
-  if (act === 'edit') div.classList.add('editing');
-  else if (act === 'cancel') div.classList.remove('editing');
-  else if (act === 'save') {
-    const text = div.querySelector('textarea.edit').value;
-    const r = await fetch('/api/paragraph/' + num, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ text }) });
-    const d = await r.json();
-    if (d.success) { toast('已保存'); loadList(); } else toast('保存失败');
-  }
-  else if (act === 'del') {
-    if (!confirm(`删除第 ${num} 段？此操作不可恢复。`)) return;
-    // 删除 = 置空（保留编号连续性由后端版本机制保障）
-    const r = await fetch('/api/paragraph/' + num, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ text: '' }) });
-    const d = await r.json();
-    if (d.success) { toast('已删除'); loadList(); } else toast('删除失败');
-  }
-}
-
-async function writeParagraph() {
-  if (isGenerating) return;
-  const prompt = inputEl.value.trim();
-  if (!prompt) { toast('先写一下这段的方向'); return; }
-  isGenerating = true;
-  btnWrite.disabled = true;
-  statusEl.textContent = '正在生成…';
-
-  // 流式盒子
-  streamBox.innerHTML = '<div class="num">正在写…</div><div class="text"><span class="cursor"></span></div>';
-  streamBox.style.display = 'block';
-  listEl.appendChild(streamBox);
-  const streamText = streamBox.querySelector('.text');
-  window.scrollTo(0, document.body.scrollHeight);
-
-  try {
-    const resp = await fetch('/api/paragraph/continue-stream', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userPrompt: prompt })
-    });
-    if (!resp.ok) { const t = await resp.text(); throw new Error(t || ('HTTP ' + resp.status)); }
-    const reader = resp.body.getReader();
-    const decoder = new TextDecoder();
-    let buf = '', full = '', doneNum = 0, finished = false;
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buf += decoder.decode(value, { stream: true });
-      let idx;
-      while ((idx = buf.indexOf('\n\n')) >= 0) {
-        const line = buf.slice(0, idx).trim(); buf = buf.slice(idx + 2);
-        if (!line.startsWith('data:')) continue;
-        try {
-          const msg = JSON.parse(line.slice(5).trim());
-          if (msg.type === 'start') streamBox.querySelector('.num').textContent = `第 ${msg.num} 段 · 生成中`;
-          else if (msg.type === 'chunk') { full += msg.text; streamText.innerHTML = esc(full) + '<span class="cursor"></span>'; }
-          else if (msg.type === 'done') { doneNum = msg.num; finished = true; }
-          else if (msg.type === 'error') throw new Error(msg.error);
-        } catch (e) { if (e.message && !e.message.includes('JSON')) throw e; }
-      }
+function openModal(mode) {
+    modalMode = mode;
+    promptInput.style.display = 'none';
+    systemInput.style.display = 'none';
+    styleInput.style.display = 'none';
+    versionList.classList.remove('active');
+    versionList.innerHTML = '';
+    btnConfirm.style.display = '';
+    if (mode === 'continue') {
+        modalTitle.textContent = '本段方向';
+        promptInput.style.display = '';
+        promptInput.value = '';
+        btnConfirm.textContent = '续写一段';
+        setTimeout(() => promptInput.focus(), 50);
+    } else if (mode === 'system') {
+        modalTitle.textContent = '主题设定';
+        systemInput.style.display = '';
+        btnConfirm.textContent = '保存';
+        fetch('/api/system-prompt').then(r => r.text()).then(t => systemInput.value = t);
+    } else if (mode === 'style') {
+        modalTitle.textContent = '风格参考';
+        styleInput.style.display = '';
+        btnConfirm.textContent = '保存';
+        fetch('/api/style-prompt').then(r => r.text()).then(t => styleInput.value = t);
+    } else if (mode === 'versions') {
+        modalTitle.textContent = '版本';
+        btnConfirm.style.display = 'none';
+        loadVersions();
     }
-    if (finished) { inputEl.value = ''; toast(`第 ${doneNum} 段写好了`); }
-    else if (!full) throw new Error('生成中断，未收到内容');
-  } catch (e) {
-    streamText.innerHTML = esc('生成失败：' + e.message);
-  } finally {
-    isGenerating = false;
-    btnWrite.disabled = false;
-    statusEl.textContent = '';
-    setTimeout(() => { streamBox.style.display = 'none'; loadList(); }, 1200);
-  }
+    overlay.classList.add('active');
 }
 
-// 主题设定弹窗
-const modal = document.getElementById('theme-modal');
-document.getElementById('btn-theme').onclick = async () => {
-  const r = await fetch('/api/system-prompt');
-  document.getElementById('theme-text').value = await r.text();
-  modal.style.display = 'flex';
-};
-document.getElementById('theme-close').onclick = () => modal.style.display = 'none';
-document.getElementById('theme-save').onclick = async () => {
-  const prompt = document.getElementById('theme-text').value;
-  const r = await fetch('/api/system-prompt', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ prompt }) });
-  const d = await r.json();
-  if (d.success) { toast('主题已保存'); modal.style.display = 'none'; }
-  else toast('保存失败');
-};
+function closeModal() {
+    overlay.classList.remove('active');
+    modalMode = null;
+}
 
-btnWrite.onclick = writeParagraph;
-inputEl.addEventListener('keydown', e => {
-  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') writeParagraph();
+async function loadVersions() {
+    versionList.classList.add('active');
+    versionList.innerHTML = '<div id="version-empty">加载中…</div>';
+    try {
+        const r = await fetch('/api/paragraphs');
+        const d = await r.json();
+        const paras = d.paragraphs || [];
+        if (paras.length === 0) {
+            versionList.innerHTML = '<div id="version-empty">还没有段落</div>';
+            return;
+        }
+        const rows = await Promise.all(paras.map(async pa => {
+            const vr = await fetch(`/api/paragraph/${pa.num}/versions`);
+            const vd = await vr.json();
+            const vs = vd.versions || [];
+            return `<div style="padding:8px 0;border-bottom:1px solid #181818">
+                <span class="version-id">第 ${pa.num} 段</span>
+                <span class="version-meta">${vs.length} 个版本 · ${pa.chars} 字</span>
+            </div>`;
+        }));
+        versionList.innerHTML = rows.join('') || '<div id="version-empty">无版本记录</div>';
+    } catch (e) {
+        versionList.innerHTML = '<div id="version-empty">加载失败</div>';
+    }
+}
+
+async function saveSystemOrStyle() {
+    const isSystem = modalMode === 'system';
+    const url = isSystem ? '/api/system-prompt' : '/api/style-prompt';
+    const prompt = isSystem ? systemInput.value : styleInput.value;
+    try {
+        const r = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prompt })
+        });
+        const d = await r.json();
+        if (d.success) { showToast('已保存'); closeModal(); }
+        else showToast('保存失败');
+    } catch (e) { showToast('请求失败'); }
+}
+
+async function continueParagraph() {
+    const userPrompt = promptInput.value.trim();
+    if (!userPrompt) { showToast('先写一下这段的方向'); return; }
+    if (isGenerating) return;
+    closeModal();
+    isGenerating = true;
+    dotContinue.classList.add('busy');
+    loading.classList.add('active');
+
+    // 流式盒子：直接缀在正文末尾
+    const streamDiv = document.createElement('div');
+    streamDiv.className = 'para-block';
+    streamDiv.innerHTML = '<span id="stream-cursor"></span>';
+    novelText.appendChild(streamDiv);
+    container.scrollTop = container.scrollHeight;
+
+    let full = '';
+    try {
+        const resp = await fetch('/api/paragraph/continue-stream', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userPrompt })
+        });
+        if (!resp.ok) {
+            const t = await resp.text();
+            throw new Error(resp.status === 409 ? '已有任务在生成中' : (t || ('HTTP ' + resp.status)));
+        }
+        const reader = resp.body.getReader();
+        const decoder = new TextDecoder();
+        let buf = '', doneNum = 0, finished = false;
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buf += decoder.decode(value, { stream: true });
+            let idx;
+            while ((idx = buf.indexOf('\n\n')) >= 0) {
+                const line = buf.slice(0, idx).trim();
+                buf = buf.slice(idx + 2);
+                if (!line.startsWith('data:')) continue;
+                let msg;
+                try { msg = JSON.parse(line.slice(5).trim()); }
+                catch (e) { continue; }
+                if (msg.type === 'chunk') {
+                    full += msg.text;
+                    streamDiv.innerHTML = esc(full) + '<span id="stream-cursor"></span>';
+                    container.scrollTop = container.scrollHeight;
+                } else if (msg.type === 'done') {
+                    doneNum = msg.num; finished = true;
+                } else if (msg.type === 'error') {
+                    throw new Error(msg.error);
+                }
+            }
+        }
+        if (finished) showToast(`第 ${doneNum} 段写好了`);
+        else if (!full) throw new Error('生成中断');
+    } catch (e) {
+        streamDiv.innerHTML = esc('生成失败：' + e.message);
+        showToast('生成失败');
+    } finally {
+        isGenerating = false;
+        dotContinue.classList.remove('busy');
+        loading.classList.remove('active');
+        setTimeout(loadManuscript, 800);
+    }
+}
+
+dotContinue.addEventListener('click', () => { if (!isGenerating) openModal('continue'); });
+document.getElementById('dot-system').addEventListener('click', () => openModal('system'));
+document.getElementById('dot-style').addEventListener('click', () => openModal('style'));
+document.getElementById('dot-versions').addEventListener('click', () => openModal('versions'));
+btnCancel.addEventListener('click', closeModal);
+overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(); });
+btnConfirm.addEventListener('click', () => {
+    if (modalMode === 'continue') continueParagraph();
+    else if (modalMode === 'system' || modalMode === 'style') saveSystemOrStyle();
 });
-loadList();
-setInterval(loadList, 30000);
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeModal();
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && modalMode === 'continue') continueParagraph();
+});
+
+loadManuscript();
+setInterval(() => { if (!isGenerating) loadManuscript(); }, 60000);
 </script>
 </body>
 </html>
