@@ -106,6 +106,40 @@ body {
 .trigger-dot:hover { background: #3a3a3a; }
 .trigger-dot.busy { background: #333; animation: pulse 1.5s ease-in-out infinite; }
 
+/* Right side nav dots (white) */
+#nav-dots {
+    position: fixed;
+    right: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    z-index: 100;
+}
+
+.nav-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #3a3a3a;
+    cursor: pointer;
+    transition: background 0.3s;
+    position: relative;
+}
+.nav-dot::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 36px;
+    height: 36px;
+}
+.nav-dot:hover { background: #888; }
+.nav-dot.disabled { opacity: 0.25; cursor: default; }
+.nav-dot.disabled:hover { background: #3a3a3a; }
+
 /* Paragraph indicator */
 #para-nav {
     position: fixed;
@@ -217,6 +251,24 @@ textarea.modal-input::placeholder { color: #333; }
 .btn-confirm:hover { background: #222; color: #aaa; }
 .btn-confirm:disabled { opacity: 0.3; cursor: not-allowed; }
 
+/* TOC list */
+#toc-list { display: none; width: 100%; }
+#toc-list.active { display: block; }
+
+.toc-item {
+    display: flex;
+    align-items: center;
+    padding: 10px 14px;
+    cursor: pointer;
+    border-bottom: 1px solid #181818;
+    transition: background 0.2s;
+}
+.toc-item:hover { background: #181818; }
+.toc-item:last-child { border-bottom: none; }
+.toc-num { color: #666; font-size: 13px; letter-spacing: 1px; min-width: 80px; }
+.toc-meta { color: #333; font-size: 11px; margin-left: auto; letter-spacing: 0.5px; }
+#toc-empty { color: #333; font-size: 12px; text-align: center; padding: 30px 0; font-style: italic; }
+
 /* Version list */
 #version-list { display: none; width: 100%; }
 #version-list.active { display: block; }
@@ -288,6 +340,12 @@ textarea.modal-input::placeholder { color: #333; }
     <div class="trigger-dot" id="dot-versions" title="版本"></div>
 </div>
 
+<div id="nav-dots">
+    <div class="nav-dot" id="nav-prev" title="上一段"></div>
+    <div class="nav-dot" id="nav-toc" title="目录"></div>
+    <div class="nav-dot" id="nav-next" title="下一段"></div>
+</div>
+
 <div id="para-nav">
     <span id="para-indicator"></span>
 </div>
@@ -299,6 +357,7 @@ textarea.modal-input::placeholder { color: #333; }
         <textarea id="system-prompt-input" class="modal-input" style="display:none" placeholder="主题设定…"></textarea>
         <textarea id="style-prompt-input" class="modal-input" style="display:none" placeholder="粘贴一段你喜欢的文章，AI将模仿其风格续写…"></textarea>
         <div id="version-list"></div>
+        <div id="toc-list"></div>
         <div id="length-row">
             <span class="length-label">字数</span>
             <span class="length-opt" data-len="300-600字">短 · 500</span>
@@ -325,6 +384,7 @@ const promptInput = document.getElementById('prompt-input');
 const systemInput = document.getElementById('system-prompt-input');
 const styleInput = document.getElementById('style-prompt-input');
 const versionList = document.getElementById('version-list');
+const tocList = document.getElementById('toc-list');
 const btnConfirm = document.getElementById('btn-confirm');
 const btnCancel = document.getElementById('btn-cancel');
 const loading = document.getElementById('loading');
@@ -398,6 +458,8 @@ function openModal(mode) {
     styleInput.style.display = 'none';
     versionList.classList.remove('active');
     versionList.innerHTML = '';
+    tocList.classList.remove('active');
+    tocList.innerHTML = '';
     lengthRow.classList.remove('active');
     btnConfirm.style.display = '';
     if (mode === 'continue') {
@@ -422,6 +484,11 @@ function openModal(mode) {
         modalTitle.textContent = '版本';
         btnConfirm.style.display = 'none';
         loadVersions();
+    } else if (mode === 'toc') {
+        modalTitle.textContent = '目录';
+        btnConfirm.style.display = 'none';
+        tocList.classList.add('active');
+        loadToc();
     }
     overlay.classList.add('active');
 }
@@ -430,6 +497,62 @@ function closeModal() {
     overlay.classList.remove('active');
     modalMode = null;
 }
+
+async function loadToc() {
+    tocList.innerHTML = '<div id="toc-empty">加载中…</div>';
+    try {
+        const r = await fetch('/api/paragraphs');
+        const d = await r.json();
+        const paras = d.paragraphs || [];
+        if (paras.length === 0) {
+            tocList.innerHTML = '<div id="toc-empty">还没有段落</div>';
+            return;
+        }
+        tocList.innerHTML = paras.map(pa => `
+            <div class="toc-item" data-num="${pa.num}">
+                <span class="toc-num">第 ${pa.num} 段</span>
+                <span class="toc-meta">${pa.chars} 字</span>
+            </div>
+        `).join('');
+        tocList.querySelectorAll('.toc-item').forEach(item => {
+            item.addEventListener('click', () => {
+                closeModal();
+                scrollToPara(parseInt(item.dataset.num));
+            });
+        });
+    } catch (e) {
+        tocList.innerHTML = '<div id="toc-empty">加载失败</div>';
+    }
+}
+
+function scrollToPara(num) {
+    const blocks = novelText.querySelectorAll('.para-block');
+    const target = blocks[num - 1];
+    if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function currentVisiblePara() {
+    const blocks = novelText.querySelectorAll('.para-block');
+    const top = container.scrollTop + 120;
+    for (let i = 0; i < blocks.length; i++) {
+        if (blocks[i].offsetTop + blocks[i].offsetHeight > top) return i + 1;
+    }
+    return blocks.length;
+}
+
+// --- Right nav dots: prev / toc / next ---
+const navPrev = document.getElementById('nav-prev');
+const navToc = document.getElementById('nav-toc');
+const navNext = document.getElementById('nav-next');
+navPrev.addEventListener('click', () => {
+    const cur = currentVisiblePara();
+    if (cur > 1) scrollToPara(cur - 1);
+});
+navNext.addEventListener('click', () => {
+    const cur = currentVisiblePara();
+    if (cur < totalParagraphs) scrollToPara(cur + 1);
+});
+navToc.addEventListener('click', () => openModal('toc'));
 
 async function loadVersions() {
     versionList.classList.add('active');
