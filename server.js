@@ -144,6 +144,47 @@ function getStylePrompt() {
     catch (e) { return ''; }
 }
 
+// --- 构建段落改写的完整 prompt ---
+function buildRewritePrompt(userPrompt, targetLength, paraNum) {
+const systemPrompt = getSystemPrompt();
+const stylePrompt = getStylePrompt();
+const paras = getParagraphs();
+const lenSpec = targetLength || PARA_TARGET;
+
+let fullPrompt = systemPrompt + '\n\n---\n\n';
+
+// 上下文：被改写段落之前的所有段落（滑动窗口）
+const beforeParas = paras.filter(p => p.num < paraNum).slice(-CONTEXT_PARAGRAPHS);
+if (beforeParas.length > 0) {
+fullPrompt += `以下是第 ${paraNum} 段之前的已写好的前文（最近 ${beforeParas.length} 段作为上下文）：\n\n`;
+for (const p of beforeParas) {
+const content = readParagraph(p.num);
+fullPrompt += `\n${content}\n\n`;
+}
+} else {
+fullPrompt += `这是小说的开头，第 ${paraNum} 段是第一段，没有前文。\n\n`;
+}
+
+// 被改写段落之后的内容（如果有），让 AI 知道后续剧情不要矛盾
+const afterParas = paras.filter(p => p.num > paraNum);
+if (afterParas.length > 0) {
+fullPrompt += `以下是第 ${paraNum} 段之后的已写剧情摘要（改写时不要与之矛盾）：\n`;
+for (const p of afterParas.slice(0, 3)) {
+const content = readParagraph(p.num);
+fullPrompt += `\n- 第 ${p.num} 段：${content.substring(0, 100)}...\n`;
+}
+fullPrompt += `\n`;
+}
+
+const oldContent = readParagraph(paraNum);
+fullPrompt += `---\n\n第 ${paraNum} 段的原文如下：\n\n${oldContent}\n\n---\n\n用户给出的改写方向：${userPrompt}\n\n请重写第 ${paraNum} 段，${lenSpec}，只写这一段。要求：紧承上文，保持与前后剧情的连贯，不要跳跃时间，不要加任何说明性文字、标题或段号，只输出小说正文。`;
+
+if (stylePrompt) {
+fullPrompt += `\n\n---\n\n风格参考：请仔细模仿以下文章的写作风格、语言节奏、用词习惯和文字质感：\n\n${stylePrompt}`;
+}
+return fullPrompt;
+}
+
 // --- 构建段落续写的完整 prompt ---
 function buildParagraphPrompt(userPrompt, targetLength) {
 const systemPrompt = getSystemPrompt();
@@ -322,17 +363,20 @@ const server = http.createServer(async (req, res) => {
         } catch (e) { return jsonRes(res, { success: false, error: 'Invalid request' }, 400); }
     }
 
-    // POST /api/paragraph/continue-stream —— 续写一段（SSE 流式）
+    // POST /api/paragraph/continue-stream —— 续写/改写一段（SSE 流式）
     if (req.method === 'POST' && p === '/api/paragraph/continue-stream') {
         const body = await readBody(req);
-        let userPrompt, targetLength;
+        let userPrompt, targetLength, mode, paraNum;
         try {
             const j = JSON.parse(body);
             userPrompt = (j.userPrompt || '').trim();
             targetLength = (j.targetLength || '').trim() || PARA_TARGET;
             // 白名单校验，防止注入奇怪的 prompt 片段
             if (!/^\d+-\d+字$/.test(targetLength)) targetLength = PARA_TARGET;
+            mode = j.mode === 'rewrite' ? 'rewrite' : 'new';
+            paraNum = parseInt(j.paraNum) || 0;
             if (!userPrompt) { res.writeHead(400); return res.end('Empty prompt'); }
+            if (mode === 'rewrite' && paraNum < 1) { res.writeHead(400); return res.end('Invalid paraNum'); }
         } catch (e) { res.writeHead(400); return res.end('Invalid request'); }
 
         if (generating) {
@@ -350,11 +394,18 @@ const server = http.createServer(async (req, res) => {
         const send = (obj) => res.write(`data: ${JSON.stringify(obj)}\n\n`);
 
         try {
-            const fullPrompt = buildParagraphPrompt(userPrompt, targetLength);
             const paras = getParagraphs();
-            const newNum = paras.length + 1;
-            log(`Stream generate paragraph ${newNum}: prompt=${fullPrompt.length} chars, len=${targetLength}`);
-            send({ type: 'start', num: newNum });
+            let fullPrompt, targetNum;
+            if (mode === 'rewrite') {
+                targetNum = paraNum;
+                fullPrompt = buildRewritePrompt(userPrompt, targetLength, paraNum);
+                log(`Stream rewrite paragraph ${targetNum}: prompt=${fullPrompt.length} chars, len=${targetLength}`);
+            } else {
+                targetNum = paras.length + 1;
+                fullPrompt = buildParagraphPrompt(userPrompt, targetLength);
+                log(`Stream generate paragraph ${targetNum}: prompt=${fullPrompt.length} chars, len=${targetLength}`);
+            }
+            send({ type: 'start', num: targetNum, mode });
 
             const r = await runClaude(fullPrompt, {
                 onStdout: (chunk) => send({ type: 'chunk', text: chunk })
@@ -363,8 +414,8 @@ const server = http.createServer(async (req, res) => {
             if (!r.ok) {
                 send({ type: 'error', error: r.error });
             } else {
-                saveParagraph(newNum, r.text);
-                send({ type: 'done', num: newNum, chars: r.text.length });
+                saveParagraph(targetNum, r.text);
+                send({ type: 'done', num: targetNum, chars: r.text.length, mode });
             }
         } catch (e) {
             send({ type: 'error', error: e.message });
