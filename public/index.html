@@ -180,6 +180,28 @@ textarea.modal-input::placeholder { color: #333; }
     margin-top: 20px;
 }
 
+#length-row {
+    display: none;
+    align-items: center;
+    gap: 10px;
+    margin-top: 14px;
+    user-select: none;
+}
+#length-row.active { display: flex; }
+#length-row .length-label { color: #333; font-size: 12px; letter-spacing: 2px; }
+.length-opt {
+    color: #444;
+    font-size: 12px;
+    letter-spacing: 1px;
+    cursor: pointer;
+    padding: 4px 12px;
+    border: 1px solid #1c1c1c;
+    border-radius: 2px;
+    transition: all 0.2s;
+}
+.length-opt:hover { color: #777; border-color: #2a2a2a; }
+.length-opt.selected { color: #999; border-color: #333; background: #161616; }
+
 .btn {
     padding: 8px 24px;
     border: none;
@@ -277,6 +299,12 @@ textarea.modal-input::placeholder { color: #333; }
         <textarea id="system-prompt-input" class="modal-input" style="display:none" placeholder="主题设定…"></textarea>
         <textarea id="style-prompt-input" class="modal-input" style="display:none" placeholder="粘贴一段你喜欢的文章，AI将模仿其风格续写…"></textarea>
         <div id="version-list"></div>
+        <div id="length-row">
+            <span class="length-label">字数</span>
+            <span class="length-opt" data-len="300-600字">短 · 500</span>
+            <span class="length-opt" data-len="800-1200字">中 · 1000</span>
+            <span class="length-opt" data-len="1800-2500字">长 · 2000</span>
+        </div>
         <div id="modal-buttons">
             <button class="btn btn-cancel" id="btn-cancel">取消</button>
             <button class="btn btn-confirm" id="btn-confirm">续写一段</button>
@@ -303,10 +331,26 @@ const loading = document.getElementById('loading');
 const toast = document.getElementById('toast');
 const dotContinue = document.getElementById('dot-continue');
 const container = document.getElementById('novel-container');
+const lengthRow = document.getElementById('length-row');
+const lengthOpts = Array.from(document.querySelectorAll('.length-opt'));
 
 let isGenerating = false;
 let totalParagraphs = 0;
 let modalMode = null; // 'continue' | 'system' | 'style' | 'versions'
+
+function getSelectedLength() {
+    return localStorage.getItem('dragon_len') || '800-1200字';
+}
+
+function renderLengthOpts() {
+    const cur = getSelectedLength();
+    lengthOpts.forEach(o => o.classList.toggle('selected', o.dataset.len === cur));
+}
+
+lengthOpts.forEach(o => o.addEventListener('click', () => {
+    localStorage.setItem('dragon_len', o.dataset.len);
+    renderLengthOpts();
+}));
 
 function showToast(msg) {
     toast.textContent = msg;
@@ -354,12 +398,15 @@ function openModal(mode) {
     styleInput.style.display = 'none';
     versionList.classList.remove('active');
     versionList.innerHTML = '';
+    lengthRow.classList.remove('active');
     btnConfirm.style.display = '';
     if (mode === 'continue') {
         modalTitle.textContent = '本段方向';
         promptInput.style.display = '';
-        promptInput.value = '';
+        promptInput.value = localStorage.getItem('dragon_draft') || '';
         btnConfirm.textContent = '续写一段';
+        lengthRow.classList.add('active');
+        renderLengthOpts();
         setTimeout(() => promptInput.focus(), 50);
     } else if (mode === 'system') {
         modalTitle.textContent = '主题设定';
@@ -430,6 +477,7 @@ async function continueParagraph() {
     const userPrompt = promptInput.value.trim();
     if (!userPrompt) { showToast('先写一下这段的方向'); return; }
     if (isGenerating) return;
+    localStorage.removeItem('dragon_draft');
     closeModal();
     isGenerating = true;
     dotContinue.classList.add('busy');
@@ -447,7 +495,7 @@ async function continueParagraph() {
         const resp = await fetch('/api/paragraph/continue-stream', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userPrompt })
+            body: JSON.stringify({ userPrompt, targetLength: getSelectedLength() })
         });
         if (!resp.ok) {
             const t = await resp.text();
@@ -505,6 +553,9 @@ btnConfirm.addEventListener('click', () => {
 document.addEventListener('keydown', e => {
     if (e.key === 'Escape') closeModal();
     if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && modalMode === 'continue') continueParagraph();
+});
+promptInput.addEventListener('input', () => {
+    localStorage.setItem('dragon_draft', promptInput.value);
 });
 
 loadManuscript();
