@@ -3,7 +3,7 @@
 //   1. [BUG修复] prompt 改走 stdin 管道，不再经 shell:true 拼进命令行
 //      （原实现把整段中文 prompt 塞进 -p 参数，遇到未配对的引号/反引号时
 //       shell 会一直等待闭合，导致子进程卡死、页面无限转圈）
-//   2. 章节式 → 段落式：一次只写一段（300-500字），上下文用滑动窗口
+//   2. 章节式 → 段落式：一次只写一段（800-1200字），上下文用滑动窗口
 //   3. 新增 SSE 流式输出接口，生成过程实时可见
 //   4. 并发锁：同一时间只允许一个生成任务
 //   5. 超时可配置，默认 10 分钟
@@ -23,7 +23,7 @@ const LOG_FILE = path.join(PROJECT_DIR, 'logs', 'novel.log');
 
 const GENERATE_TIMEOUT_MS = parseInt(process.env.GENERATE_TIMEOUT_MS || '600000', 10);
 const CONTEXT_PARAGRAPHS = parseInt(process.env.CONTEXT_PARAGRAPHS || '12', 10);
-const PARA_TARGET = process.env.PARA_TARGET || '300-500字';
+const PARA_TARGET = process.env.PARA_TARGET || '800-1200字';
 
 // 并发锁：同一时间只允许一个生成任务
 let generating = false;
@@ -144,10 +144,11 @@ function getStylePrompt() {
 }
 
 // --- 构建段落续写的完整 prompt ---
-function buildParagraphPrompt(userPrompt) {
+function buildParagraphPrompt(userPrompt, targetLength) {
 const systemPrompt = getSystemPrompt();
 const stylePrompt = getStylePrompt();
 const paras = getParagraphs();
+const lenSpec = targetLength || PARA_TARGET;
 
 let fullPrompt = systemPrompt + '\n\n---\n\n';
 
@@ -166,7 +167,7 @@ fullPrompt += `（注：前文还有更早的 ${paras.length - ctxParas.length} 
 fullPrompt += `这是小说的开头，还没有任何正文。请根据下面的主题设定写出第一段。\n\n`;
 }
 
-fullPrompt += `---\n\n用户给出的本段写作方向：${userPrompt}\n\n请写出第 ${paras.length + 1} 段，${PARA_TARGET}，只写一段。要求：紧承上文，只写这一段里发生的事，不要跳跃时间，不要提前剧透后续剧情，不要加任何说明性文字、标题或段号，只输出小说正文。`;
+fullPrompt += `---\n\n用户给出的本段写作方向：${userPrompt}\n\n请写出第 ${paras.length + 1} 段，${lenSpec}，只写一段。要求：紧承上文，只写这一段里发生的事，不要跳跃时间，不要提前剧透后续剧情，不要加任何说明性文字、标题或段号，只输出小说正文。`;
 
 if (stylePrompt) {
 fullPrompt += `\n\n---\n\n风格参考：请仔细模仿以下文章的写作风格、语言节奏、用词习惯和文字质感：\n\n${stylePrompt}`;
@@ -235,13 +236,13 @@ finish({ ok: false, error: 'Failed to write prompt to stdin: ' + e.message});
 }
 
 // --- 生成一段（非流式，返回完整文本） ---
-async function generateParagraph(userPrompt) {
+async function generateParagraph(userPrompt, targetLength) {
 if (generating) {
 return { ok: false, busy: true, error: '已有生成任务在进行中，请稍候'};
 }
 generating = true;
 try {
-const fullPrompt = buildParagraphPrompt(userPrompt);
+const fullPrompt = buildParagraphPrompt(userPrompt, targetLength);
 const paras = getParagraphs();
 log(`Generate paragraph ${paras.length + 1}: prompt=${fullPrompt.length} chars`);
 const r = await runClaude(fullPrompt);
@@ -307,9 +308,11 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'POST' && p === '/api/paragraph/continue') {
         const body = await readBody(req);
         try {
-            const { userPrompt } = JSON.parse(body);
+            const { userPrompt, targetLength } = JSON.parse(body);
             if (!userPrompt || !userPrompt.trim()) return jsonRes(res, { success: false, error: 'Empty prompt' }, 400);
-            const r = await generateParagraph(userPrompt.trim());
+            let len = (targetLength || '').trim() || PARA_TARGET;
+            if (!/^\d+-\d+字$/.test(len)) len = PARA_TARGET;
+            const r = await generateParagraph(userPrompt.trim(), len);
             if (!r.ok) {
                 const code = r.busy ? 409 : 500;
                 return jsonRes(res, { success: false, error: r.error }, code);
@@ -321,10 +324,13 @@ const server = http.createServer(async (req, res) => {
     // POST /api/paragraph/continue-stream —— 续写一段（SSE 流式）
     if (req.method === 'POST' && p === '/api/paragraph/continue-stream') {
         const body = await readBody(req);
-        let userPrompt;
+        let userPrompt, targetLength;
         try {
             const j = JSON.parse(body);
             userPrompt = (j.userPrompt || '').trim();
+            targetLength = (j.targetLength || '').trim() || PARA_TARGET;
+            // 白名单校验，防止注入奇怪的 prompt 片段
+            if (!/^\d+-\d+字$/.test(targetLength)) targetLength = PARA_TARGET;
             if (!userPrompt) { res.writeHead(400); return res.end('Empty prompt'); }
         } catch (e) { res.writeHead(400); return res.end('Invalid request'); }
 
@@ -343,10 +349,10 @@ const server = http.createServer(async (req, res) => {
         const send = (obj) => res.write(`data: ${JSON.stringify(obj)}\n\n`);
 
         try {
-            const fullPrompt = buildParagraphPrompt(userPrompt);
+            const fullPrompt = buildParagraphPrompt(userPrompt, targetLength);
             const paras = getParagraphs();
             const newNum = paras.length + 1;
-            log(`Stream generate paragraph ${newNum}: prompt=${fullPrompt.length} chars`);
+            log(`Stream generate paragraph ${newNum}: prompt=${fullPrompt.length} chars, len=${targetLength}`);
             send({ type: 'start', num: newNum });
 
             const r = await runClaude(fullPrompt, {
