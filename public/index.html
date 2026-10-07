@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DRAGON · 失业青年怒杀龙虎榜</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "PingFang SC", "Microsoft YaHei", serif; background: #141414; color: #e8e8e8; line-height: 1.9; }
+  header { position: sticky; top: 0; background: #1c1c1c; border-bottom: 1px solid #333; padding: 12px 20px; display: flex; align-items: center; gap: 12px; z-index: 10; }
+  header h1 { font-size: 18px; letter-spacing: 2px; }
+  header h1 .sub { color: #c9a227; font-size: 13px; letter-spacing: 1px; margin-left: 8px; }
+  header .spacer { flex: 1; }
+  header .stat { font-size: 12px; color: #888; }
+  main { max-width: 760px; margin: 0 auto; padding: 24px 20px 200px; }
+  .para { background: #1e1e1e; border: 1px solid #2c2c2c; border-radius: 8px; padding: 16px 18px; margin-bottom: 14px; position: relative; }
+  .para .num { font-size: 11px; color: #c9a227; letter-spacing: 1px; margin-bottom: 6px; }
+  .para .text { white-space: pre-wrap; font-size: 15px; }
+  .para .ops { position: absolute; top: 10px; right: 12px; display: none; gap: 6px; }
+  .para:hover .ops { display: flex; }
+  .para .ops button { background: #333; color: #ccc; border: none; border-radius: 4px; font-size: 11px; padding: 3px 8px; cursor: pointer; }
+  .para .ops button:hover { background: #444; color: #fff; }
+  .para.editing .text { display: none; }
+  .para textarea.edit { display: none; width: 100%; min-height: 120px; background: #141414; color: #e8e8e8; border: 1px solid #444; border-radius: 4px; padding: 10px; font-size: 15px; line-height: 1.9; font-family: inherit; }
+  .para.editing textarea.edit { display: block; }
+  .para .edit-ops { display: none; margin-top: 8px; gap: 8px; }
+  .para.editing .edit-ops { display: flex; }
+  .empty { text-align: center; color: #666; padding: 60px 0; font-size: 14px; }
+  #composer { position: fixed; bottom: 0; left: 0; right: 0; background: #1c1c1c; border-top: 1px solid #333; padding: 14px 20px; }
+  #composer .inner { max-width: 760px; margin: 0 auto; }
+  #prompt-input { width: 100%; min-height: 64px; background: #141414; color: #e8e8e8; border: 1px solid #444; border-radius: 6px; padding: 10px 12px; font-size: 14px; font-family: inherit; resize: vertical; }
+  #composer .row { display: flex; gap: 10px; margin-top: 10px; align-items: center; }
+  #btn-write { background: #c9a227; color: #141414; border: none; border-radius: 6px; padding: 10px 26px; font-size: 15px; font-weight: bold; cursor: pointer; }
+  #btn-write:disabled { background: #555; color: #999; cursor: not-allowed; }
+  #btn-theme { background: transparent; color: #888; border: 1px solid #444; border-radius: 6px; padding: 9px 14px; font-size: 13px; cursor: pointer; }
+  #status { font-size: 12px; color: #888; }
+  #stream-box { display: none; background: #1e1e1e; border: 1px solid #c9a227; border-radius: 8px; padding: 16px 18px; margin-bottom: 14px; }
+  #stream-box .num { font-size: 11px; color: #c9a227; margin-bottom: 6px; }
+  #stream-box .text { white-space: pre-wrap; font-size: 15px; }
+  .cursor { display: inline-block; width: 8px; height: 16px; background: #c9a227; animation: blink 0.8s infinite; vertical-align: -2px; }
+  @keyframes blink { 50% { opacity: 0; } }
+  #theme-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.7); z-index: 50; align-items: center; justify-content: center; }
+  #theme-modal .box { background: #1e1e1e; border: 1px solid #444; border-radius: 10px; width: min(720px, 92vw); max-height: 84vh; display: flex; flex-direction: column; }
+  #theme-modal h3 { padding: 16px 20px; border-bottom: 1px solid #333; font-size: 16px; }
+  #theme-modal textarea { flex: 1; margin: 16px 20px; min-height: 300px; background: #141414; color: #e8e8e8; border: 1px solid #444; border-radius: 6px; padding: 12px; font-size: 13px; font-family: inherit; line-height: 1.8; }
+  #theme-modal .foot { padding: 0 20px 16px; display: flex; gap: 10px; justify-content: flex-end; }
+  #theme-modal .foot button { border-radius: 6px; padding: 8px 20px; font-size: 14px; cursor: pointer; }
+  #theme-save { background: #c9a227; color: #141414; border: none; font-weight: bold; }
+  #theme-close { background: transparent; color: #aaa; border: 1px solid #444; }
+  #toast { position: fixed; top: 70px; left: 50%; transform: translateX(-50%); background: #333; color: #fff; padding: 8px 18px; border-radius: 6px; font-size: 13px; display: none; z-index: 60; }
+</style>
+</head>
+<body>
+<header>
+  <h1>DRAGON<span class="sub">失业青年怒杀龙虎榜</span></h1>
+  <div class="spacer"></div>
+  <div class="stat" id="stat">加载中…</div>
+</header>
+<main id="list"></main>
+<div id="composer">
+  <div class="inner">
+    <textarea id="prompt-input" placeholder="这一段想写什么？比如：林默第一次看到龙虎榜，手指悬在买入键上迟迟不敢点…"></textarea>
+    <div class="row">
+      <button id="btn-write">续写一段</button>
+      <button id="btn-theme">主题设定</button>
+      <span id="status"></span>
+    </div>
+  </div>
+</div>
+<div id="theme-modal">
+  <div class="box">
+    <h3>主题设定（系统 prompt）</h3>
+    <textarea id="theme-text"></textarea>
+    <div class="foot">
+      <button id="theme-close">关闭</button>
+      <button id="theme-save">保存</button>
+    </div>
+  </div>
+</div>
+<div id="toast"></div>
+<script>
+const listEl = document.getElementById('list');
+const inputEl = document.getElementById('prompt-input');
+const btnWrite = document.getElementById('btn-write');
+const statusEl = document.getElementById('status');
+const statEl = document.getElementById('stat');
+const streamBox = document.createElement('div');
+streamBox.id = 'stream-box';
+let isGenerating = false;
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.style.display = 'block';
+  setTimeout(() => t.style.display = 'none', 2200);
+}
+function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+async function loadList() {
+  try {
+    const r = await fetch('/api/paragraphs');
+    const d = await r.json();
+    const paras = d.paragraphs || [];
+    statEl.textContent = `共 ${paras.length} 段` + (d.generating ? ' · 生成中…' : '');
+    if (paras.length === 0) {
+      listEl.innerHTML = '<div class="empty">还没有正文，在下面写下第一段的方向，点"续写一段"开始。</div>';
+      return;
+    }
+    const texts = await Promise.all(paras.map(async pa => {
+      const tr = await fetch('/api/paragraph/' + pa.num);
+      return { num: pa.num, text: await tr.text() };
+    }));
+    listEl.innerHTML = '';
+    texts.forEach(({ num, text }) => {
+      const div = document.createElement('div');
+      div.className = 'para'; div.dataset.num = num;
+      div.innerHTML = `<div class="num">第 ${num} 段</div><div class="text">${esc(text)}</div>
+        <div class="ops"><button data-act="edit">改</button><button data-act="del">删</button></div>
+        <textarea class="edit"></textarea><div class="edit-ops"><button data-act="save">保存</button><button data-act="cancel">取消</button></div>`;
+      div.querySelector('textarea.edit').value = text;
+      div.addEventListener('click', onParaClick);
+      listEl.appendChild(div);
+    });
+    window.scrollTo(0, document.body.scrollHeight);
+  } catch (e) { statEl.textContent = '加载失败'; }
+}
+
+async function onParaClick(e) {
+  const btn = e.target.closest('button'); if (!btn) return;
+  const div = e.target.closest('.para'); const num = div.dataset.num;
+  const act = btn.dataset.act;
+  if (act === 'edit') div.classList.add('editing');
+  else if (act === 'cancel') div.classList.remove('editing');
+  else if (act === 'save') {
+    const text = div.querySelector('textarea.edit').value;
+    const r = await fetch('/api/paragraph/' + num, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ text }) });
+    const d = await r.json();
+    if (d.success) { toast('已保存'); loadList(); } else toast('保存失败');
+  }
+  else if (act === 'del') {
+    if (!confirm(`删除第 ${num} 段？此操作不可恢复。`)) return;
+    // 删除 = 置空（保留编号连续性由后端版本机制保障）
+    const r = await fetch('/api/paragraph/' + num, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ text: '' }) });
+    const d = await r.json();
+    if (d.success) { toast('已删除'); loadList(); } else toast('删除失败');
+  }
+}
+
+async function writeParagraph() {
+  if (isGenerating) return;
+  const prompt = inputEl.value.trim();
+  if (!prompt) { toast('先写一下这段的方向'); return; }
+  isGenerating = true;
+  btnWrite.disabled = true;
+  statusEl.textContent = '正在生成…';
+
+  // 流式盒子
+  streamBox.innerHTML = '<div class="num">正在写…</div><div class="text"><span class="cursor"></span></div>';
+  streamBox.style.display = 'block';
+  listEl.appendChild(streamBox);
+  const streamText = streamBox.querySelector('.text');
+  window.scrollTo(0, document.body.scrollHeight);
+
+  try {
+    const resp = await fetch('/api/paragraph/continue-stream', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userPrompt: prompt })
+    });
+    if (!resp.ok) { const t = await resp.text(); throw new Error(t || ('HTTP ' + resp.status)); }
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = '', full = '', doneNum = 0, finished = false;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      let idx;
+      while ((idx = buf.indexOf('\n\n')) >= 0) {
+        const line = buf.slice(0, idx).trim(); buf = buf.slice(idx + 2);
+        if (!line.startsWith('data:')) continue;
+        try {
+          const msg = JSON.parse(line.slice(5).trim());
+          if (msg.type === 'start') streamBox.querySelector('.num').textContent = `第 ${msg.num} 段 · 生成中`;
+          else if (msg.type === 'chunk') { full += msg.text; streamText.innerHTML = esc(full) + '<span class="cursor"></span>'; }
+          else if (msg.type === 'done') { doneNum = msg.num; finished = true; }
+          else if (msg.type === 'error') throw new Error(msg.error);
+        } catch (e) { if (e.message && !e.message.includes('JSON')) throw e; }
+      }
+    }
+    if (finished) { inputEl.value = ''; toast(`第 ${doneNum} 段写好了`); }
+    else if (!full) throw new Error('生成中断，未收到内容');
+  } catch (e) {
+    streamText.innerHTML = esc('生成失败：' + e.message);
+  } finally {
+    isGenerating = false;
+    btnWrite.disabled = false;
+    statusEl.textContent = '';
+    setTimeout(() => { streamBox.style.display = 'none'; loadList(); }, 1200);
+  }
+}
+
+// 主题设定弹窗
+const modal = document.getElementById('theme-modal');
+document.getElementById('btn-theme').onclick = async () => {
+  const r = await fetch('/api/system-prompt');
+  document.getElementById('theme-text').value = await r.text();
+  modal.style.display = 'flex';
+};
+document.getElementById('theme-close').onclick = () => modal.style.display = 'none';
+document.getElementById('theme-save').onclick = async () => {
+  const prompt = document.getElementById('theme-text').value;
+  const r = await fetch('/api/system-prompt', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ prompt }) });
+  const d = await r.json();
+  if (d.success) { toast('主题已保存'); modal.style.display = 'none'; }
+  else toast('保存失败');
+};
+
+btnWrite.onclick = writeParagraph;
+inputEl.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') writeParagraph();
+});
+loadList();
+setInterval(loadList, 30000);
+</script>
+</body>
+</html>
